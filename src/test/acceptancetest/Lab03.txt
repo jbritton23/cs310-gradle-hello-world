@@ -1,0 +1,236 @@
+#include <C8051F040.H>
+#include <stdio.h>
+#include "music.h"
+
+
+
+/* FUNCTION PROTOTYPES */
+
+void sys_init(void);
+void reset_dur_timer(void);
+void delay_by_1ms(unsigned int);
+void print(char s[]);
+
+
+
+/* DATA TYPE DEFINITIONS */
+
+struct Note {
+
+	unsigned int dur;                   /* duration of note, in miliseconds (two bytes) */
+	unsigned char note_h;               /* frequency of note, high byte */
+	unsigned char note_l;               /* frequency of note, low byte */
+
+};
+
+
+
+/* FUNCTION DEFINITIONS */
+
+void main(void) {
+
+	unsigned char playkey = 0;          /* P6 key state variable */
+	unsigned char newkey = 0;           /* P7 key state variables */
+	unsigned char oldkey = 0;           /* " */
+
+	unsigned char note_h = ZH;          /* initial values for note frequency and duration */
+	unsigned char note_l = ZL;          /* " */
+	unsigned int dur = 0;               /* " */
+
+	unsigned int n = 0;                 /* note counter (use as index for notes[]) */
+	unsigned char i = 0;                /* loop control variable */
+
+	struct Note xdata notes[256];       /* note table in XRAM (max 256 note/delay pairs) */
+
+	sys_init();                         /* configure hardware and peripherals */
+
+	print("\n*** NEW SESSION ***\n\n"); /* select UART SFR page; print welcome */
+
+	/* MAIN LOOP */
+	
+	while (1) {
+
+		SFRPAGE = 0x0F;                 /* Switch to SFR Page F (for I/O ports) */
+
+		playkey = P6;                   /* get state of P6 and P7 button rows */
+		newkey = P7;
+
+		SFRPAGE = TMR2_PAGE;            /* Switch to Timer 2 SFR */
+
+		if (newkey != oldkey) {         /* new key was pressed/released */
+
+			oldkey = newkey;
+
+			playKey = 
+
+			/* (complete the remaining lines in this block, as indicated by the comments) */
+
+			/* disable Timer 2 output (to load new frequency) */
+
+			switch (newkey) {
+
+				/* INSERT YOUR CODE HERE */
+
+				/* (complete the note sequence; the first note is provided for you) */
+
+				case 0x80: /* C5 (do) */
+					note_h = C4H;
+					note_l = C4L;
+					break;
+
+				default:
+					note_h = ZH;
+					note_l = ZL;
+
+			}
+			
+			/* Load new note values into Timer 2 and RCAP registers (H and L) */
+
+			/* Enable Timer 2 output (begin playing note) */
+
+		} /* END if() */
+
+		else if (n > 0) {               /* If a new song has begun, count duration of note/rest */
+
+      		/* INSERT YOUR CODE HERE */
+         
+        } /* END else if() */
+
+		if (playkey != 0) {             /* If a key was pressed in P6 row, begin playback */
+
+			print("\n*** Beginning Playback ***\n\n");/* Print "Beginning Playback" message to console */
+
+	        /* INSERT YOUR CODE HERE */
+
+			print("\n*** End Playback ***\n\n");/* Print "End Playback" to console */
+
+
+		} /* END if() */
+
+	} /* END MAIN LOOP */
+
+} /* END main() */
+
+
+
+/* This function prints a string literal to the serial console, and encapsulates */
+/* the necessary SFRPAGE switches so they do not have to be repeated in the caller */
+
+void print(char s[]) {
+
+	unsigned char p;            /* save previous SFR page */
+	p = SFRPAGE;                /* " */
+
+	SFRPAGE = UART0_PAGE;       /* switch to UART page */
+
+	printf("%s", s);
+
+	SFRPAGE = p;                /* restore previous SFR page */
+
+}
+
+
+
+/* This function resets Timer 0, which is used as a duration timer for the notes/rests */
+
+void reset_dur_timer(void) {
+
+	unsigned char p;            /* save previous SFR page */
+
+	p = SFRPAGE;     /* " */
+	SFRPAGE = TIMER01_PAGE;     /* switch to T0 page */
+
+	TR0	= 0;                    /* stop Timer 0 */
+
+	TH0	= 0xEB;                 /* place 59410 in TH0:TL0 so T0 overflows in 1 ms */
+	TL0	= 0x12;                 /* " */
+	TF0	= 0;                    /* clear overflow */
+
+	TR0 = 1;                    /* start Timer 0 */
+	
+	SFRPAGE = p;                /* restore previous SFR page */
+
+}
+
+
+
+/* This function creates a delay of 1ms, and accepts an int argument for longer delays */
+
+void delay_by_1ms(unsigned int k) {
+
+	unsigned char p;
+	unsigned int i;
+
+	p = SFRPAGE;                /* save previous SFR page */
+
+	SFRPAGE = TIMER01_PAGE;     /* switch to T0 page */
+
+	for (i = 0; i < k; i++) {
+
+		TH0	= 0xEB;	            /* place 59410 in TH0:TL0 so T0 overflows in 1 ms */
+		TL0	= 0x12;             /* " */
+		TF0	= 0;
+		TR0	= 1;	            /* start Timer 0 */
+
+		while(!TF0);            /* wait for 1 ms */
+
+		TR0	= 0;	            /* stop Timer 0 */
+
+	}
+
+	SFRPAGE	= p;                /* restore previous SFR page */
+
+}
+
+
+
+void sys_init(void) {
+
+	SFRPAGE	= 0x0F;             /* switch to SFR configuration page (F) */
+
+	WDTCN	= 0xDE;             /* disable watchdog timer */
+	WDTCN	= 0xAD;             /* " */
+
+	CLKSEL	= 0;                /* select internal oscillator as SYSCLK */
+	OSCICN	= 0x83;             /* " */
+
+	XBR0	= 0xF7;             /* assign all peripheral signals to port pins */
+	XBR1	= 0xFF;             /* " */
+	XBR2	= 0x5D;             /* " */
+	XBR3	= 0x8F;             /* " */
+
+	P2MDOUT	= 0x80;             /* enable T2 pin output */
+	P7MDOUT = 0xFF;             /* enable P7 as push-pull output */
+	P6MDOUT = 0xFF;             /* enable P6 as push-pull output */
+
+	P7 = 0;                     /* clear P7 and P6 */
+	P6 = 0;
+
+	SFRPAGE	= TMR4_PAGE;        /* Configure Timer 4 for UART */
+
+	RCAP4H	= 0xFF;             /* set UART0 baud rate to 19200 */
+	RCAP4L	= 0xB2;             /* " */
+	TMR4H	= 0xFF;             /* " */
+	TMR4L	= 0xB2;             /* " */
+
+	TMR4CF	= 0x08;             /* select SYSCLK as TMR4's clock source */
+	TMR4CN	= 0x04;             /* select Timer 4 reload mode */
+
+	SFRPAGE	= TMR2_PAGE;        /* Configure Timer 2 */
+
+	TMR2CF	= 0x0A;             /* select SYSCLK as timer 2 clock, enable T2 output */
+	TMR2CN	= 0;
+
+	SFRPAGE	= UART0_PAGE;       /* switch to SFR page 0 */
+
+	SCON0	= 0x50;             /* UART0 in mode 1, enable reception */
+	SSTA0	= 0x0F;             /* use TMR4 to generate UART0 baud rate */
+	TI0		= 1;                /* get ready to transceive */
+	RI0		= 0;                /* get ready to receive */
+
+	TMOD	= 0x11;	            /* configure Timer 0 and 1 to mode 1 */
+	CKCON	= 0x01;	            /* Timer 0 use system clock divided by 4 as clock source */
+
+	SPI0CN	= 0x01;             /* enable SPI in 3-wire mode */
+	
+}
